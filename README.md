@@ -40,7 +40,7 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ### PlotGraphBefore
 - `plotgrph.py`: Script to plot graphs before the runs.
--  - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
+   - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
 
 ## Usage
 
