@@ -44,4 +44,4 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ## Usage
 
-To execute the scripts or view the graphs, navigate to the respective subdirectory and follow the project documentation guidelines. For any additional information or support, please contact the project maintainers
+To execute the scripts or view the graphs, navigate to the respective subdirectory and follow the experimental design which has been written in the conference paper.
