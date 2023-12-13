@@ -10,8 +10,8 @@
 mode = 1  # 1 = experimental, 2 = rendering test
 # Main experimental parameters
 p_exper = {}  # experimental parameters
-p_exper['num_trials'] = 15  # number of trials
-p_exper['num_episodes'] = 300  # number of episodes per trial
+p_exper['num_trials'] = 1 # number of trials
+p_exper['num_episodes'] = 10  # number of episodes per trial
 p_exper['max_ep_len'] = 300  # maximum episode length
 p_exper['leng_solved'] = 200  # length of episode considered solved
 p_exper['batch_size'] = 128

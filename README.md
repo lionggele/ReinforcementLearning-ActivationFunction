@@ -6,33 +6,25 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ### AdaAF
 - **Ada_learnableAF**
-  - `graph`
-    - `c1-net--11122023_1057`: Graph data for condition 1.
-    - `c2-net--11122023_1057`: Graph data for condition 2.
+  - `graph`: Contains graphs related to Adaptive activation functions.
   - `DQN_PRELU-ELU.py`: Implements DQN with PReLU and ELU activation functions.
 
-### Gate_Activation
-- `graph`
+### Gated_Activation
+- `graph`: Contains graphs related to Gated activation functions.
   - `Ada_Gated.py`: Implements Ada gated activation functions.
-  - `c1-net--10122023_0837`: Graph data for condition 1.
-  - `c2-net--10122023_0837`: Graph data for condition 2.
-  - `c3-net--10122023_0837`: Graph data for condition 3.
+
 
 ### Hirachical Structure
-- `graph`
+- `graph`: Contains graphs related to Hierarchical activation functions.
   - `DQN-AdaAFOAF-All.py`: Implements DQN with AdaAFOAF for all conditions.
   - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
-  - `c1-net--13122023_1426`: Graph data for condition 1.
-  - `c2-net--13122023_1426`: Graph data for condition 2.
-  - `c3-net--13122023_1426`: Graph data for condition 3.
+
 
 ### AF and OAF
 #### AF
-- `finalgraph`: Contains final graph data.
-- `graph`
+- `finalgraph`: Contains final graph AF.
+- `graph`: Contains graphs related to activation functions.
   - `DQN-Tanh-RELU.py`: Implements DQN with Tanh and ReLU activation functions.
-  - `c1-net--06122023_2325`: Graph data for condition 1.
-  - `c2-net--06122023_2325`: Graph data for condition 2.
 
 #### OAF
 - `GCU`
@@ -42,13 +34,13 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
   - `DQN-GCU-SQU.py`: Implements DQN with GCU and SQU activation functions.
 
 ### MixAF
-- `graph`
-  - `MixAF.py`: Implements mixed activation functions.
-  - `c1-net--09122023_0832`: Graph data for condition 1.
-  - `c2-net--09122023_0832`: Graph data for condition 2.
+- `graph`: Contains graphs related to Mixed activation functions.
+- `MixAF.py`: Implements mixed activation functions.
+  
 
 ### PlotGraphBefore
 - `plotgrph.py`: Script to plot graphs before the runs.
+-  - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
 
 ## Usage
 
