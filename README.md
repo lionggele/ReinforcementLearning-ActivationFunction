@@ -11,10 +11,10 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ### Gated_Activation
 - `graph`: Contains graphs related to Gated activation functions.
-  - `Ada_Gated.py`: Implements Ada gated activation functions.
+  - `Ada_Gated.py`: Implements Ada-gated activation functions.
 
 
-### Hirachical Structure
+### Hierarchical Structure
 - `graph`: Contains graphs related to Hierarchical activation functions.
   - `DQN-AdaAFOAF-All.py`: Implements DQN with AdaAFOAF for all conditions.
   - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
@@ -22,7 +22,7 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ### AF and OAF
 #### AF
-- `finalgraph`: Contains final graph AF.
+- `final graph`: Contains final graph AF.
 - `graph`: Contains graphs related to activation functions.
   - `DQN-Tanh-RELU.py`: Implements DQN with Tanh and ReLU activation functions.
 
@@ -40,7 +40,10 @@ Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive A
 
 ### PlotGraphBefore
 - `plotgrph.py`: Script to plot graphs before the runs.
--  - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
+   - `myplotgraphbefore.png`: Pre-run plot for the hierarchical structure.
+
+## Result Picture 
+the resulting picture is in side each of the graph folders. 
 
 ## Usage
 
