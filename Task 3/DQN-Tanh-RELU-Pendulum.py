@@ -9,7 +9,7 @@
 mode = 1  # 1 = experimental, 2 = rendering test
 # Main experimental parameters
 p_exper = {}  # experimental parameters
-p_exper['num_trials'] = 15  # number of trials
+p_exper['num_trials'] = 1  # number of trials
 p_exper['num_episodes'] = 300  # number of episodes per trial
 p_exper['max_ep_len'] = 300  # maximum episode length
 p_exper['leng_solved'] = 200  # length of episode considered solved
@@ -26,24 +26,6 @@ p_test = {}
 p_test['condition'] = 3  # which condition
 p_test['net_name'] = 'c3-net--16112023_1122'
 p_test['max_ep_len'] = 300
-
-# import json
-# import argparse
-# import os
-#
-# # Parse command-line arguments
-# parser = argparse.ArgumentParser(description='Run DQN experiments')
-# parser.add_argument('--config',
-#                     help='Path to configuration file',
-#                     default=os.path.join('C:/Users/liong/Gymnasium/ARS_Demo', 'config.json'))
-# args = parser.parse_args()
-#
-# # Load configuration from file
-# with open(args.config, 'r') as config_file:
-#     p_exper = json.load(config_file)
-#
-# # Example of using a parameter
-# print(f"Number of trials: {p_exper['num_trials']}")
 
 # === Imports ============================
 
@@ -65,7 +47,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-
 # === Basic setup =========================
 def is_colab():
     try:
@@ -74,11 +55,10 @@ def is_colab():
     except ImportError:
         return False
 
-
-if not (is_colab()):
+if not is_colab():
     os.chdir(os.path.dirname(os.path.abspath(__file__)))  # change dir. to the one of the running script
 
-env = gym.make("CartPole-v1")
+env = gym.make("Pendulum-v1")
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -92,26 +72,19 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
-
-# === Store the agent's experiences to learn from experiences
 class ReplayMemory(object):
-    def __init__(self, capacity):  # capacity -> determines the maximum numb of transitions the replay memory can hold.
-        self.memory = deque([],
-                            maxlen=capacity)  # deque with maxlen attribute -> old entries will automatically discarded to make room for new ones.
+    def __init__(self, capacity):
+        self.memory = deque([], maxlen=capacity)
 
-    def push(self,
-             *args):  # add a new transitions to the replay memory ( *args -> allows any number of arguments -> state, action, next_state and rewards.
+    def push(self, *args):
         """Save a transition"""
         self.memory.append(Transition(*args))
 
-    def sample(self, batch_size):  # retrieves a random sample of transitions from the replay memory
-        return random.sample(self.memory,
-                             batch_size)  # return a list of 'batch size' transitions. (more stable and efficient learning.)
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
 
     def __len__(self):
-        return len(
-            self.memory)  # returns the current size of the replay memory ( return numb of items in the memory 'deque') -> to check if memory has enough samples to perform training?
-
+        return len(self.memory)
 
 # === Support functions =======================
 # Generate date/time string
@@ -119,18 +92,14 @@ def get_date_time_str():
     now = datetime.now()  # current date and time
     return now.strftime("%d%m%Y_%H%M")
 
-
 # Generate filename for a policy net
 def create_model_filename():
     core_name = ''  # os.path.basename(__file__)[0:-3] # [0:-3] --> to remove '.py'
     filename = 'net-' + core_name + '-' + get_date_time_str()
     return filename
 
-
-# Get index of first value exceeding a threshold (Determine the episode at which certain performance criteria are first met.. ** PERFORMANCE EVALUATION, DETERMINING WHEN A TASK IS SOLVED and ANALYSIS AND DEBUGGING.)
+# Get index of first value exceeding a threshold
 def get_index_exceed(vec, val):
-    # vec == a numpy array or list containing numeric values.
-    # val == a numerix threshold value.
     # Find indices where the vector is greater than the value
     indices = np.where(vec > val)
 
@@ -142,77 +111,52 @@ def get_index_exceed(vec, val):
 
     return first_index
 
-
 # === Models ==================================
 # --- DQN model 1 - one AF, tanh
 class DQN1(nn.Module):
     def __init__(self, num_nodes, n_observations, n_actions):
-        super(DQN1, self).__init__()  # initialization of Parent Class -> the parent class ('nn.Module')
+        super(DQN1, self).__init__()
         self.layer1 = nn.Linear(n_observations, num_nodes)
         self.layer2 = nn.Linear(num_nodes, num_nodes)
         self.layer3 = nn.Linear(num_nodes, n_actions)
 
-    def forward(self, x):  # define the computation performed at every call (the forward pass through the network)
-        # allow the model to be applied to inputs in a consistent and defined manner. (model training and evalutaion)
-        x = F.tanh(self.layer1(x))
-        x = F.tanh(self.layer2(x))
+    def forward(self, x):
+        x = torch.tanh(self.layer1(x))
+        x = torch.tanh(self.layer2(x))
         return self.layer3(x)
-
 
 # --- DQN model 2 - one AF, RELU
 class DQN2(nn.Module):
     def __init__(self, num_nodes, n_observations, n_actions):
         super(DQN2, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_actions)
+        self.layer1 = nn.Linear(n_observations, num_nodes)
+        self.layer2 = nn.Linear(num_nodes, num_nodes)
+        self.layer3 = nn.Linear(num_nodes, n_actions)
 
-    # Called with either one element to determine next action, or a batch
-    # during optimization. Returns tensor([[left0exp,right0exp]...]).
     def forward(self, x):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
         return self.layer3(x)
 
-
 # === Experimental support functions ==================
 
 # Function for selecting actions
-# ( an epsilon-greedy policy -> to balance exploration and exploitation during the training
-#                            -> gradually decreasing the value of epsilon, the agent explores the enc more in the inital stages,
-#                            -> shifts to exploiting the learned policy as training progress
 def select_action(state, steps_done, policy_net):
-    sample = random.random()  # 0.0 and 1.0, explore (choose a random action) or exploit (choose the best known action)
-
-    # epsilon-greedy calculation ( initial high exploration ('step-done' == small, 'eps_threshold' close to 'p_exper['eps_start']',  graudal shift to explotiaion, ensuring minimum exploration ( setting a final epsilon value (p_exper['eps_end']), the agent maintains a minimum level of exploration throughout training,).
-    # as training progress ('step_done' increase), 'eps_threshold' decreases exponentially from 'eps_start' to 'eps_end'
+    sample = random.random()
     eps_threshold = p_exper['eps_end'] + (p_exper['eps_start'] - p_exper['eps_end']) * \
-                    math.exp(-1. * steps_done / p_exper['eps_decay'])  # computes the exponential decay factor
-    # steps_done += 1
+                    math.exp(-1. * steps_done / p_exper['eps_decay'])
     if sample > eps_threshold:
-        with torch.no_grad():  # to save memory the action selection is done without calculating gradients.
-            # t.max(1) will return the largest column value of each row.
-            # second column on max result is index of where max element was
-            # found, so we pick action with the larger expected reward.
+        with torch.no_grad():
             return policy_net(state).max(1)[1].view(1, 1)
-            # policy_net(state).max(1)[1] == returns the index of the action with the highest value (i.e., the best action to take).
-            # view(1, 1)  == reshapes the tensor to the appropriate size.
     else:
-        return torch.tensor([[env.action_space.sample()]], device=device,
-                            dtype=torch.long)  # random action will be selected from env action space
-
+        return torch.tensor(env.action_space.sample(), device=device, dtype=torch.float32).unsqueeze(0)  # Change dtype to float32
 
 # Function for selecting actions - for testing
 def select_action_test(state, policy_net):
     with torch.no_grad():
-        # t.max(1) will return the largest column value of each row.
-        # second column on max result is index of where max element was
-        # found, so we pick action with the larger expected reward.
         return policy_net(state).max(1)[1].view(1, 1)
 
-
 episode_durations = []
-
 
 # Function for plotting durations - mean and standard deviations for a condition
 # mean_durat -> dim = (num_episodes,)
@@ -234,7 +178,7 @@ def plot_durations_4(mean_durat, std_durat, mean_aux_rewards, std_aux_rewards, p
     plt.plot(xs, mean_aux_rewards, color='red', label='AR')
     plt.legend()
     # Plot extra performance metrics
-    res_string = 'trails at: {0}\n'.format(p_exper['num_trials'])
+    res_string = 'trials at: {0}\n'.format(p_exper['num_trials'])
     res_string += 'Solved at: {0}\n'.format(performs['solved_at'])
     res_string += 'M. cumul. DR: {0}\n'.format(performs['mean_cumul_dr'])  # durat. reward
     res_string += 'M. cumul. AR: {0}\n'.format(performs['mean_cumul_ar'])  # auxil. reward
@@ -245,100 +189,64 @@ def plot_durations_4(mean_durat, std_durat, mean_aux_rewards, std_aux_rewards, p
     x_pos = int(0.6 * num_steps)
     plt.text(x_pos, 30, res_string, color='black', fontsize=12)  # , ha='center')
 
-
-# y-axis limits
-# max_y = np.max(mean_durat + std_durat)
-# plt.ylim(0, max_y)
-
-# == Performing a single optimization step on the policy network using a batch of transitions sampled from the replay memory.
-# == Calculation of the loss between the predicted Q-values and the target Q-values, and the update of the policy network's parameters.
-
+# Optimize the model
 def optimize_model(optimizer, memory, policy_net, target_net):
-    # Ensure there are enough samples in the replay memory to perform optimization (check memory size)
     if len(memory) < p_exper['batch_size']:
         return
-
-    # Sample a batch a transitions (randomly)
     transitions = memory.sample(p_exper['batch_size'])
-
-    # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
-    # detailed explanation). This converts batch-array of Transitions
-    # to Transition of batch-arrays. -> have separate arrays for states, actions, next states, and rewards.
+    # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for detailed explanation)
     batch = Transition(*zip(*transitions))
 
     # Compute a mask of non-final states and concatenate the batch elements
-    # (a final state would've been the one after which simulation ended)
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                            batch.next_state)), device=device, dtype=torch.bool)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                       if s is not None])
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=device, dtype=torch.bool)
+    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
     state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
-    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-    # columns of actions taken. These are the actions which would've been taken
-    # for each batch state according to policy_net
+    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the columns of actions taken
     state_action_values = policy_net(state_batch).gather(1, action_batch)
 
-    # Compute V(s_{t+1}) for all next states.(use target network to perdict Q-values for the next states.)
-    # Expected values of actions for non_final_next_states are computed based
-    # on the "older" target_net; selecting their best reward with max(1)[0].
-    # This is merged based on the mask, such that we'll have either the expected
-    # state value or 0 in case the state was final.
+    # Compute V(s_{t+1}) for all next states
     next_state_values = torch.zeros(p_exper['batch_size'], device=device)
     with torch.no_grad():
         next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
-    # Compute the expected Q values
     expected_state_action_values = (next_state_values * p_exper['gamma']) + reward_batch
 
-    # Compute the Huber loss between the predicted Q-values and the expected Q-values
+    # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
 
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
-    # In-place gradient clipping
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
-
 # === Main experimental functions =====================
-# nitialized the env
-# resets the state
-# iteratively interacts with the env while updating the policy network and the target network.
+
 def run_exper_trial(policy_net, target_net, p_exper):
-    # Initializations
     steps_done = 0
     episode_durations = []
     episode_rewards = []
     episode_aux_rewards = []
 
-    # Models initialization
-    target_net.load_state_dict(policy_net.state_dict())  # synchronize the target network with policy network
+    target_net.load_state_dict(policy_net.state_dict())
     optimizer = optim.AdamW(policy_net.parameters(), lr=p_exper['rl_lr'], amsgrad=True)
     memory = ReplayMemory(10000)
 
-    # Scan through episodes
     for i_episode in tqdm(range(p_exper['num_episodes'])):
-        # Initialize the environment and get it's state
         state, info = env.reset()
-        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)  # convert the state to a tensor and add a batch dimension
-        # Scan throgh time steps
+        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
         tot_reward = 0
         tot_ang_reward = 0
         for t in count():
-            # based on the current state using epsilon greedy strategy
             action = select_action(state, steps_done, policy_net)
             steps_done += 1
-
-            # execute the action in the environment and observe the next state and reward
-            observation, reward, terminated, truncated, _ = env.step(action.item())
-
+            observation, reward, terminated, truncated, _ = env.step(action.numpy())  # Convert to numpy array
             reward = torch.tensor([reward], device=device)
 
-            # Reward shaping - inversely prop. to vertical angle - cont. varying reward
+            # Reward shaping
             abs_ang = np.abs(observation[2])
             if abs_ang <= 0.2:
                 ang_prop = 1 * (1 - (abs_ang / 0.2))
@@ -346,7 +254,6 @@ def run_exper_trial(policy_net, target_net, p_exper):
                 reward += ang_prop
             tot_reward += reward
 
-            # check for termination
             done = terminated or truncated
 
             if terminated:
@@ -354,51 +261,29 @@ def run_exper_trial(policy_net, target_net, p_exper):
             else:
                 next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-            # Store the transition in memory
             memory.push(state, action, next_state, reward)
-
-            # Move to the next state
             state = next_state
 
-            # Perform one step of the optimization (on the policy network)
             optimize_model(optimizer, memory, policy_net, target_net)
 
-            # Soft update of the target network's weights
-            # θ′ ← τ θ + (1 −τ )θ′
-            # Tomas note: this could be made more efficient
             target_net_state_dict = target_net.state_dict()
             policy_net_state_dict = policy_net.state_dict()
             for key in policy_net_state_dict:
-                target_net_state_dict[key] = policy_net_state_dict[key] * p_exper['tau'] + target_net_state_dict[
-                    key] * (1 - p_exper['tau'])
+                target_net_state_dict[key] = policy_net_state_dict[key] * p_exper['tau'] + target_net_state_dict[key] * (1 - p_exper['tau'])
             target_net.load_state_dict(target_net_state_dict)
 
             if t >= p_exper['max_ep_len'] or done:
                 episode_durations.append(t + 1)
                 episode_rewards.append(tot_reward.item())
                 episode_aux_rewards.append(tot_ang_reward)
-                # plot_durations_1()
                 break
 
     return episode_durations, episode_rewards, episode_aux_rewards
 
-
 def run_experiments():
-    # p_exper['batch_size'] is the number of transitions sampled from the replay buffer
-    # p_exper['gamma'] is the discount factor as mentioned in the previous section
-    # p_exper['eps_start'] is the starting value of epsilon
-    # p_exper['eps_end'] is the final value of epsilon
-    # p_exper['eps_decay'] controls the rate of exponential decay of epsilon, higher means a slower decay
-    # p_exper['tau'] is the update rate of the target network
-    # LR is the learning rate of the ``AdamW`` optimizer
-
-    # --- Shared parameters and initializations
-
     num_cond = 2  # number of conditions
 
-    # Get number of actions from gym action space
-    n_actions = env.action_space.n
-    # Get the number of state observations
+    n_actions = env.action_space.shape[0]  # For continuous action spaces
     state, info = env.reset()
     n_observations = len(state)
     all_durations = np.zeros((num_cond, p_exper['num_trials'], p_exper['num_episodes']))
@@ -411,10 +296,9 @@ def run_experiments():
 
     # --- Condition 1 -------------------------
 
-    # Scan through trials
     print('Condition 1 ...')
-    cond_i = 0  # experimental condition index
-    max_cumul_tr = 0  # largest cumulative total reward so far (across trials)
+    cond_i = 0
+    max_cumul_tr = 0
     for trial_i in range(p_exper['num_trials']):
 
         print('Trial {0} ...'.format(trial_i + 1))
@@ -423,7 +307,6 @@ def run_experiments():
         target_net = DQN1(p_exper['num_nodes'], n_observations, n_actions).to(device)
         episode_durations, episode_rewards, episode_aux_rewards = run_exper_trial(policy_net, target_net, p_exper)
 
-        # Keep track of results
         all_durations[cond_i, trial_i, :] = episode_durations
         all_rewards[cond_i, trial_i, :] = episode_rewards
         all_aux_rewards[cond_i, trial_i, :] = episode_aux_rewards
@@ -434,9 +317,7 @@ def run_experiments():
         cumul_tot_rewards[cond_i, trial_i] = a_cumul_tr
         cumul_aux_rewards[cond_i, trial_i] = a_cumul_ar
 
-        # Keep track of the best model
         if a_cumul_tr > max_cumul_tr:
-            # Keep track of best model
             max_cumul_tr = a_cumul_tr
             best_policy_net = policy_net.state_dict()
 
@@ -444,10 +325,9 @@ def run_experiments():
 
     # --- Condition 2 -------------------------
 
-    # Scan through trials
     print('Condition 2 ...')
-    cond_i += 1  # condition index
-    max_cumul_tr = 0  # largest cumulative reward so far (across trials)
+    cond_i += 1
+    max_cumul_tr = 0
     for trial_i in range(p_exper['num_trials']):
 
         print('Trial {0} ...'.format(trial_i + 1))
@@ -456,7 +336,6 @@ def run_experiments():
         target_net = DQN2(p_exper['num_nodes'], n_observations, n_actions).to(device)
         episode_durations, episode_rewards, episode_aux_rewards = run_exper_trial(policy_net, target_net, p_exper)
 
-        # Keep track of results
         all_durations[cond_i, trial_i, :] = episode_durations
         all_rewards[cond_i, trial_i, :] = episode_rewards
         all_aux_rewards[cond_i, trial_i, :] = episode_aux_rewards
@@ -467,9 +346,7 @@ def run_experiments():
         cumul_tot_rewards[cond_i, trial_i] = a_cumul_tr
         cumul_aux_rewards[cond_i, trial_i] = a_cumul_ar
 
-        # Keep track of the best model
         if a_cumul_tr > max_cumul_tr:
-            # Keep track of best model
             max_cumul_tr = a_cumul_tr
             best_policy_net = policy_net.state_dict()
 
@@ -477,15 +354,15 @@ def run_experiments():
 
     # === Prepare results for statistics and visualization
 
-    mean_durations = all_durations.mean(axis=1)  # across trials
-    std_durations = all_durations.std(axis=1)  # across trials
-    mean_std_durations = std_durations.mean(axis=1)  # across episodes
-    mean_rewards = all_rewards.mean(axis=1)  # across trials
-    mean_aux_rewards = all_aux_rewards.mean(axis=1)  # across trials
-    std_tot_rewards = all_rewards.std(axis=1)  # across trials
-    std_aux_rewards = all_aux_rewards.std(axis=1)  # across trials
-    mean_std_tot_rewards = std_tot_rewards.mean(axis=1)  # across episodes
-    mean_std_aux_rewards = std_aux_rewards.mean(axis=1)  # across episodes
+    mean_durations = all_durations.mean(axis=1)
+    std_durations = all_durations.std(axis=1)
+    mean_std_durations = std_durations.mean(axis=1)
+    mean_rewards = all_rewards.mean(axis=1)
+    mean_aux_rewards = all_aux_rewards.mean(axis=1)
+    std_tot_rewards = all_rewards.std(axis=1)
+    std_aux_rewards = all_aux_rewards.std(axis=1)
+    mean_std_tot_rewards = std_tot_rewards.mean(axis=1)
+    mean_std_aux_rewards = std_aux_rewards.mean(axis=1)
     mean_cumul_durat = cumul_durations.mean(axis=1)
     mean_cumul_tot_rewards = cumul_tot_rewards.mean(axis=1)
     mean_cumul_aux_rewards = cumul_aux_rewards.mean(axis=1)
@@ -493,13 +370,7 @@ def run_experiments():
     # === Statistics
 
     # Mann-Whitney U Test
-    # Here, we apply the test once. If you want to use the test multiple times,
-    # recall that you need consider the "multiple comparisons problem" (the probability
-    # of falsely rejecting the null hypothesis increases when you apply more tests)
-    # and therefore you need to make some adjustments (e.g. Bonferroni Correction, etc.)
-
-    # Comparing the cumulative rewards of condition 2 (tanh) and condition 3 (sigmoid)
-    result = mannwhitneyu(mean_rewards[0, :], mean_rewards[1, :], alternative='greater')  # mean_rewards[2, :]
+    result = mannwhitneyu(mean_rewards[0, :], mean_rewards[1, :], alternative='greater')
 
     print(f"Mann-Whitney U statistic: {result.statistic}")
     print(f"p-value: {result.pvalue}")
@@ -507,12 +378,9 @@ def run_experiments():
     # Decide if statistically significant
     alpha = 0.05
     if result.pvalue < alpha:
-        print(
-            f"The mean reward for tanh is statistically significantly greater than the mean reward for RELU at alpha={alpha}.")
+        print(f"The mean reward for tanh is statistically significantly greater than the mean reward for RELU at alpha={alpha}.")
     else:
-        print(
-            f"The mean reward for tanh is NOT statistically significantly greater than the mean reward for RELU at "
-            f"alpha={alpha}.")
+        print(f"The mean reward for tanh is NOT statistically significantly greater than the mean reward for RELU at alpha={alpha}.")
 
     # === Visualize results
 
@@ -532,8 +400,7 @@ def run_experiments():
     performs['mean_cumul_tr'] = a_mean_cumul_tot_rewards
     performs['mean_cumul_ar'] = a_mean_cumul_aux_rewards
     a_title = 'Condition {0} - Tanh'.format(ci + 1)
-    plot_durations_4(mean_durations[ci, :], std_durations[ci, :], mean_aux_rewards[ci, :], std_aux_rewards[ci, :],
-                     performs, a_title)
+    plot_durations_4(mean_durations[ci, :], std_durations[ci, :], mean_aux_rewards[ci, :], std_aux_rewards[ci, :], performs, a_title)
 
     # --- condition 2
     fig2 = plt.figure(2)
@@ -549,8 +416,7 @@ def run_experiments():
     performs['mean_cumul_tr'] = a_mean_cumul_tot_rewards
     performs['mean_cumul_ar'] = a_mean_cumul_aux_rewards
     a_title = 'Condition {0} - RELU'.format(ci + 1)
-    plot_durations_4(mean_durations[ci, :], std_durations[ci, :], mean_aux_rewards[ci, :], std_aux_rewards[ci, :],
-                     performs, a_title)
+    plot_durations_4(mean_durations[ci, :], std_durations[ci, :], mean_aux_rewards[ci, :], std_aux_rewards[ci, :], performs, a_title)
 
     plt.show()
 
@@ -560,35 +426,26 @@ def run_experiments():
     fn2 = 'c2-' + create_model_filename()
     torch.save(best_policy_nets[1], fn2)
 
-
 # === Main rendering test =======================
 def render_test_net():
-    env = gym.make("CartPole-v1", render_mode='human')
+    env = gym.make("Pendulum-v1", render_mode='human')
 
-    # Get number of actions from gym action space
-    n_actions = env.action_space.n
-    # Get the number of state observations
+    n_actions = env.action_space.shape[0]
     state, info = env.reset()
     n_observations = len(state)
 
-    # Create network depending on condition
     if p_test['condition'] == 1:
         policy_net = DQN1(p_exper['num_nodes'], n_observations, n_actions)
     elif p_test['condition'] == 2:
         policy_net = DQN2(p_exper['num_nodes'], n_observations, n_actions)
 
-    # Load model
     policy_net.load_state_dict(torch.load(p_test['net_name']))
 
-    # Initialize the environment and get it's state
     state, info = env.reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-    # Scan throgh time steps
-    # tot_reward = 0
-    # tot_ang_reward = 0
     for t in count():
         action = select_action_test(state, policy_net)
-        observation, reward, terminated, truncated, _ = env.step(action.item())
+        observation, reward, terminated, truncated, _ = env.step(action.numpy())  # Convert to numpy array
         reward = torch.tensor([reward], device=device)
 
         done = terminated or truncated
@@ -598,15 +455,12 @@ def render_test_net():
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-        # Move to the next state
         state = next_state
 
         if t >= p_test['max_ep_len'] or done:
             break
 
-
 # ==== Main ========================================
-
 if __name__ == "__main__":
     if mode == 1:  # experimental model
         run_experiments()
