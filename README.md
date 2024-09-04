@@ -1,4 +1,4 @@
-# Task 2 Directory README
+# Reinforcement Learning Activation Function
 
 Welcome to the Task 2 directory! This directory is part of the AdaAF (Adaptive Activation Function) project, which explores various activation functions in deep learning models. Below is a structured outline of the directory with descriptions for each component.
 
